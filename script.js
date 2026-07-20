@@ -1382,11 +1382,21 @@ function generateKML(type) {
 function toggleResultsPanel() {
     const panel = document.getElementById('resultsPanel');
     const icon = document.getElementById('resultsToggleIcon');
+    const isMobile = window.innerWidth <= 768;
+    
     panel.classList.toggle('collapsed');
+    
     if (panel.classList.contains('collapsed')) {
         icon.setAttribute('data-lucide', 'chevron-right');
     } else {
         icon.setAttribute('data-lucide', 'chevron-left');
+        // On mobile, close controls if results are opened
+        if (isMobile) {
+            const controls = document.getElementById('controlsPanel');
+            if (!controls.classList.contains('collapsed')) {
+                toggleControlsPanel();
+            }
+        }
     }
     if (window.lucide) lucide.createIcons();
 }
@@ -1394,11 +1404,21 @@ function toggleResultsPanel() {
 function toggleControlsPanel() {
     const panel = document.getElementById('controlsPanel');
     const icon = document.getElementById('controlsToggleIcon');
+    const isMobile = window.innerWidth <= 768;
+    
     panel.classList.toggle('collapsed');
+    
     if (panel.classList.contains('collapsed')) {
         icon.setAttribute('data-lucide', 'maximize-2');
     } else {
         icon.setAttribute('data-lucide', 'chevron-down');
+        // On mobile, close results if controls are opened
+        if (isMobile) {
+            const results = document.getElementById('resultsPanel');
+            if (!results.classList.contains('collapsed')) {
+                toggleResultsPanel();
+            }
+        }
     }
     if (window.lucide) lucide.createIcons();
 }
