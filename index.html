@@ -459,6 +459,102 @@
             70% { transform: scale(1.4); opacity: 0; }
             100% { transform: scale(0.95); opacity: 0; }
         }
+
+        /* --- MOBILE OPTIMIZATION --- */
+        @media (max-width: 768px) {
+            .panel-results {
+                width: calc(100% - 32px);
+                left: 16px;
+                top: 16px;
+                bottom: 16px;
+                max-height: 85vh;
+            }
+            .panel-results.collapsed {
+                transform: translateX(calc(-100% - 20px));
+            }
+            .results-toggle {
+                right: -52px;
+                top: 10px;
+            }
+
+            .panel-controls {
+                width: calc(100% - 32px);
+                right: 16px;
+                left: 16px;
+                bottom: 16px;
+            }
+            .panel-controls.collapsed {
+                transform: translateY(calc(100% - 75px)) scale(0.98);
+                opacity: 0.95;
+            }
+            .controls-toggle {
+                left: 50%;
+                transform: translateX(-50%);
+                top: -24px;
+            }
+
+            .panel-inner {
+                padding: 20px;
+                border-radius: 24px;
+            }
+
+            .tab-nav {
+                gap: 6px;
+                padding: 4px;
+            }
+            .tab-btn {
+                padding: 10px 4px;
+            }
+            .tab-btn span {
+                font-size: 9px;
+            }
+            .tab-btn i {
+                width: 18px;
+                height: 18px;
+            }
+
+            .header-brand h1 {
+                font-size: 18px;
+            }
+
+            .dashboard {
+                padding: 15px;
+                gap: 12px;
+            }
+            .dash-value {
+                font-size: 13px;
+            }
+
+            .map-coords {
+                top: 80px;
+                left: 16px;
+                transform: none;
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+
+            .ruler-tools {
+                top: 16px;
+                right: 16px;
+                flex-direction: row;
+            }
+            .tool-btn {
+                width: 42px;
+                height: 42px;
+            }
+
+            textarea {
+                height: 100px;
+                padding: 15px;
+            }
+            
+            .btn-group {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-group .btn:last-child {
+                grid-column: span 2;
+            }
+        }
     </style>
 </head>
 <body>
