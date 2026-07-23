@@ -1,8 +1,3 @@
-// ============================================================
-// AVIATION DATA INTEGRATOR PRO – v4.0 (MapLibre Migration)
-// ============================================================
-
-// --- GLOBALS ---
 let map;
 let activeTab = 'navtech';
 const layerIds = { 
@@ -259,323 +254,104 @@ function updateDashboard() {
 function initMap() {
     if (map) return;
     
+    // Safety check for maplibregl availability
+    if (typeof maplibregl === 'undefined') {
+        console.warn('[INIT] maplibregl not defined, retrying in 500ms...');
+        setTimeout(initMap, 500);
+        return;
+    }
+
     try {
         map = new maplibregl.Map({
             container: 'map',
             style: 'https://tiles.openfreemap.org/styles/dark',
-            center: [118, -2.5],
-            zoom: 5,
+            center: [120, 15],
+            zoom: 2.5,
             attributionControl: false
         });
-
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         map.on('load', () => {
             document.getElementById('map-skeleton').style.opacity = '0';
             setTimeout(() => document.getElementById('map-skeleton').style.display = 'none', 800);
 
-            // Load Cyclone Swirl Icon (Black with White Outline)
+            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
             const swirlSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="black" stroke="white" stroke-width="0.5"/><path d="M12 7a5 5 0 0 1 5 5" stroke="black" stroke-width="2.5" fill="none"/><path d="M12 17a5 5 0 0 1-5-5" stroke="black" stroke-width="2.5" fill="none"/><path d="M12 7a5 5 0 0 1 5 5" stroke="white" stroke-width="1" fill="none"/><path d="M12 17a5 5 0 0 1-5-5" stroke="white" stroke-width="1" fill="none"/></svg>`;
             const swirlUrl = 'data:image/svg+xml;base64,' + btoa(swirlSvg);
             map.loadImage(swirlUrl, (error, image) => {
                 if (image) map.addImage('tc-swirl', image);
             });
             
-            // Sources
             map.addSource('navtech-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('vona-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('notam-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('tc-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource(rulerLineSource, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
-            // Layers
-            map.addLayer({
-                id: 'navtech-line', type: 'line', source: 'navtech-source',
-                paint: { 'line-color': '#22c55e', 'line-width': 4, 'line-opacity': 0.8 }
+            map.addLayer({ id: 'navtech-line', type: 'line', source: 'navtech-source', paint: { 'line-color': '#22c55e', 'line-width': 4, 'line-opacity': 0.8 } });
+            map.addLayer({ id: 'notam-areas', type: 'fill', source: 'notam-source', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.25 } });
+            map.addLayer({ id: 'notam-labels', type: 'symbol', source: 'notam-source', layout: { 'text-field': ['get', 'id'], 'text-font': ['Open Sans Bold'], 'text-size': 10, 'text-allow-overlap': false }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,1)', 'text-halo-width': 2 } });
+            map.addLayer({ id: 'vona-ash-obs', type: 'fill', source: 'vona-source', filter: ['all', ['==', ['get', 'type'], 'obs'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]], paint: { 'fill-color': '#ef4444', 'fill-opacity': 0.25, 'fill-outline-color': '#ef4444' } });
+            map.addLayer({ id: 'vona-ash-fcst', type: 'fill', source: 'vona-source', filter: ['all', ['==', ['get', 'type'], 'fcst'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]], paint: { 'fill-color': ['match', ['get', 'label'], '+6HR', '#f97316', '+12HR', '#fbbf24', '+18HR', '#d946ef', '#f97316'], 'fill-opacity': 0.1, 'fill-outline-color': ['match', ['get', 'label'], '+6HR', '#f97316', '+12HR', '#fbbf24', '+18HR', '#d946ef', '#f97316'] } });
+            map.addLayer({ id: 'vona-labels', type: 'symbol', source: 'vona-source', filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]], layout: { 'text-field': ['get', 'label'], 'text-font': ['Open Sans Bold'], 'text-size': 10, 'text-allow-overlap': false }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,1)', 'text-halo-width': 2 } });
+            map.addLayer({ id: 'tc-radii', type: 'fill', source: 'tc-source', filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'kts'], ['literal', activeTcLabels]]], paint: { 'fill-color': ['match', ['get', 'kts'], '34', '#3b82f6', '50', '#fbbf24', '64', '#ef4444', '#8b5cf6'], 'fill-opacity': 0.06, 'fill-outline-color': ['match', ['get', 'kts'], '34', '#3b82f6', '50', '#fbbf24', '64', '#ef4444', '#8b5cf6'] } });
+            map.addLayer({ id: 'tc-radii-outline', type: 'line', source: 'tc-source', filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'kts'], ['literal', activeTcLabels]]], paint: { 'line-color': ['match', ['get', 'kts'], '34', '#3b82f6', '50', '#fbbf24', '64', '#ef4444', '#8b5cf6'], 'line-width': 1, 'line-opacity': 0.8 } });
+            map.addLayer({ id: 'tc-track', type: 'line', source: 'tc-source', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': '#8b5cf6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+            map.addLayer({ id: 'tc-points-dot', type: 'circle', source: 'tc-source', filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]], paint: { 'circle-radius': 4, 'circle-color': '#000000', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffffff' } });
+            map.addLayer({ id: 'tc-points', type: 'symbol', source: 'tc-source', filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]], layout: { 'icon-image': 'tc-swirl', 'icon-size': 0.5, 'icon-allow-overlap': true } });
+            map.addLayer({ id: 'tc-labels', type: 'symbol', source: 'tc-source', filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]], layout: { 'text-field': ['get', 'label'], 'text-font': ['Open Sans Bold'], 'text-size': 10, 'text-offset': [1.5, 0], 'text-anchor': 'left', 'text-allow-overlap': false }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,1)', 'text-halo-width': 2 } });
+            map.addLayer({ id: 'ruler-line', type: 'line', source: rulerLineSource, paint: { 'line-color': '#3b82f6', 'line-width': 3, 'line-dasharray': [2, 2] } });
+            map.addLayer({ id: 'ruler-labels', type: 'symbol', source: rulerLineSource, filter: ['==', ['geometry-type'], 'Point'], layout: { 'text-field': ['get', 'distance'], 'text-font': ['Open Sans Bold'], 'text-size': 14, 'text-offset': [0, -1.5], 'text-anchor': 'bottom', 'text-allow-overlap': true }, paint: { 'text-color': '#3b82f6', 'text-halo-color': 'rgba(255,255,255,0.9)', 'text-halo-width': 2 } });
+            map.addLayer({ id: 'navtech-labels', type: 'symbol', source: 'navtech-source', filter: ['==', ['geometry-type'], 'Point'], layout: { 'text-field': ['get', 'name'], 'text-font': ['Open Sans Bold'], 'text-size': 11, 'text-offset': [0, 1.2], 'text-anchor': 'top', 'text-allow-overlap': true }, paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 1 } });
+
+            map.on('mousemove', (e) => {
+                const { lat, lng } = e.lngLat;
+                const latStr = Math.abs(lat).toFixed(4) + (lat>=0?'N':'S');
+                const lngStr = Math.abs(lng).toFixed(4) + (lng>=0?'E':'W');
+                document.getElementById('coordsDisplay').textContent = `${latStr} ${lngStr}`;
+                if (isRulerActive && rulerPoints.length > 0) updateRulerPreview(e.lngLat);
             });
 
-            map.addLayer({
-                id: 'notam-areas', type: 'fill', source: 'notam-source',
-                paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.25 }
+            map.on('click', (e) => {
+                if (isRulerActive) handleRulerClick(e.lngLat);
             });
 
-            map.addLayer({
-                id: 'notam-labels',
-                type: 'symbol',
-                source: 'notam-source',
-                layout: {
-                    'text-field': ['get', 'id'],
-                    'text-font': ['Open Sans Bold'],
-                    'text-size': 10,
-                    'text-allow-overlap': false
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': 'rgba(0,0,0,1)',
-                    'text-halo-width': 2
-                }
+            map.on('click', 'notam-areas', (e) => {
+                const props = e.features[0].properties;
+                new maplibregl.Popup({ maxWidth: '300px' })
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<div style="font-family: var(--font-main); font-size: 12px; color: white;"><b style="color:var(--primary); font-size: 14px; display: block; margin-bottom: 8px; font-family: var(--font-mono); border-bottom: 1px solid rgba(14, 165, 233, 0.3); padding-bottom: 4px;">${props.id}</b><div style="margin-bottom: 12px; line-height: 1.6; max-height: 180px; overflow-y: auto; padding-right: 8px; font-weight: 500; color: #e2e8f0;">${props.content}</div><div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;"><span style="color: var(--accent-orange); font-weight: 800; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px;">${props.limits}</span></div></div>`)
+                    .addTo(map);
             });
 
-            map.addLayer({
-                id: 'vona-ash-obs', type: 'fill', source: 'vona-source',
-                filter: ['all', ['==', ['get', 'type'], 'obs'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]],
-                paint: { 'fill-color': '#ef4444', 'fill-opacity': 0.25, 'fill-outline-color': '#ef4444' }
-            });
+            map.on('mouseenter', 'notam-areas', () => map.getCanvas().style.cursor = 'pointer');
+            map.on('mouseleave', 'notam-areas', () => map.getCanvas().style.cursor = '');
 
-            map.addLayer({
-                id: 'vona-ash-fcst', type: 'fill', source: 'vona-source',
-                filter: ['all', ['==', ['get', 'type'], 'fcst'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]],
-                paint: { 
-                    'fill-color': [
-                        'match', ['get', 'label'],
-                        '+6HR', '#f97316',
-                        '+12HR', '#fbbf24',
-                        '+18HR', '#d946ef',
-                        '#f97316' // default
-                    ],
-                    'fill-opacity': 0.1, 
-                    'fill-outline-color': [
-                        'match', ['get', 'label'],
-                        '+6HR', '#f97316',
-                        '+12HR', '#fbbf24',
-                        '+18HR', '#d946ef',
-                        '#f97316'
-                    ]
-                }
-            });
+            const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
+            const addPopupHover = (layerId, getHtml) => {
+                map.on('mouseenter', layerId, (e) => {
+                    map.getCanvas().style.cursor = 'pointer';
+                    const html = getHtml(e.features[0].properties);
+                    popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+                });
+                map.on('mouseleave', layerId, () => {
+                    map.getCanvas().style.cursor = '';
+                    popup.remove();
+                });
+            };
 
-            map.addLayer({
-                id: 'vona-labels',
-                type: 'symbol',
-                source: 'vona-source',
-                filter: ['all', ['==', '$type', 'Polygon'], ['in', ['get', 'label'], ['literal', activeVonaLabels]]],
-                layout: {
-                    'text-field': ['get', 'label'],
-                    'text-font': ['Open Sans Bold'],
-                    'text-size': 10,
-                    'text-allow-overlap': false
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': 'rgba(0,0,0,1)',
-                    'text-halo-width': 2
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-radii', type: 'fill', source: 'tc-source',
-                filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'kts'], ['literal', activeTcLabels]]],
-                paint: {
-                    'fill-color': [
-                        'match', ['get', 'kts'],
-                        '34', '#3b82f6',
-                        '50', '#fbbf24',
-                        '64', '#ef4444',
-                        '#8b5cf6'
-                    ],
-                    'fill-opacity': 0.06,
-                    'fill-outline-color': [
-                        'match', ['get', 'kts'],
-                        '34', '#3b82f6',
-                        '50', '#fbbf24',
-                        '64', '#ef4444',
-                        '#8b5cf6'
-                    ]
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-radii-outline', type: 'line', source: 'tc-source',
-                filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'kts'], ['literal', activeTcLabels]]],
-                paint: {
-                    'line-color': [
-                        'match', ['get', 'kts'],
-                        '34', '#3b82f6',
-                        '50', '#fbbf24',
-                        '64', '#ef4444',
-                        '#8b5cf6'
-                    ],
-                    'line-width': 1,
-                    'line-opacity': 0.8
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-track', type: 'line', source: 'tc-source',
-                filter: ['==', ['geometry-type'], 'LineString'],
-                paint: { 
-                    'line-color': '#8b5cf6', 
-                    'line-width': 2, 
-                    'line-dasharray': [3, 2] 
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-points-dot', type: 'circle', source: 'tc-source',
-                filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]],
-                paint: {
-                    'circle-radius': 4,
-                    'circle-color': '#000000',
-                    'circle-stroke-width': 1.5,
-                    'circle-stroke-color': '#ffffff'
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-points', type: 'symbol', source: 'tc-source',
-                filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]],
-                layout: {
-                    'icon-image': 'tc-swirl',
-                    'icon-size': 0.5,
-                    'icon-allow-overlap': true
-                }
-            });
-
-            map.addLayer({
-                id: 'tc-labels', type: 'symbol', source: 'tc-source',
-                filter: ['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'type'], ['literal', activeTcTypes]]],
-                layout: {
-                    'text-field': ['get', 'label'],
-                    'text-font': ['Open Sans Bold'],
-                    'text-size': 10,
-                    'text-offset': [1.5, 0],
-                    'text-anchor': 'left',
-                    'text-allow-overlap': false
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': 'rgba(0,0,0,1)',
-                    'text-halo-width': 2
-                }
-            });
-
-            map.addLayer({
-                id: 'ruler-line', type: 'line', source: rulerLineSource,
-                paint: { 'line-color': '#3b82f6', 'line-width': 3, 'line-dasharray': [2, 2] }
-            });
-
-            // Ruler Labels
-            map.addLayer({
-                id: 'ruler-labels',
-                type: 'symbol',
-                source: rulerLineSource,
-                filter: ['==', '$type', 'Point'],
-                layout: {
-                    'text-field': ['get', 'distance'],
-                    'text-font': ['Open Sans Bold'],
-                    'text-size': 14,
-                    'text-offset': [0, -1.5],
-                    'text-anchor': 'bottom',
-                    'text-allow-overlap': true
-                },
-                paint: {
-                    'text-color': '#3b82f6',
-                    'text-halo-color': 'rgba(255,255,255,0.9)',
-                    'text-halo-width': 2
-                }
-            });
-
-            // Waypoint Labels
-            map.addLayer({
-                id: 'navtech-labels',
-                type: 'symbol',
-                source: 'navtech-source',
-                filter: ['==', '$type', 'Point'],
-                layout: {
-                    'text-field': ['get', 'name'],
-                    'text-font': ['Open Sans Bold'],
-                    'text-size': 11,
-                    'text-offset': [0, 1.2],
-                    'text-anchor': 'top',
-                    'text-allow-overlap': true
-                },
-                paint: {
-                    'text-color': '#ffffff',
-                    'text-halo-color': 'rgba(0,0,0,0.8)',
-                    'text-halo-width': 1
-                }
-            });
+            addPopupHover('notam-areas', (p) => `<b>${p.id}</b><br><small>Aviation Warning Area</small>`);
+            addPopupHover('vona-ash-obs', (p) => `<b style="color:#ef4444">${p.label} ASH CLOUD</b><br><small>TIME: ${p.time || 'N/A'}</small><br><small>ALT: ${p.fl}</small>`);
+            addPopupHover('vona-ash-fcst', (p) => `<b style="color:#f97316">${p.label} FORECAST</b><br><small>TIME: ${p.time || 'N/A'}</small><br><small>ALT: ${p.fl}</small>`);
+            addPopupHover('navtech-labels', (p) => `<b>Waypoint: ${p.name}</b><br><small>Navtech Route Data</small>`);
         });
-
-        map.on('mousemove', (e) => {
-            const { lat, lng } = e.lngLat;
-            const latStr = Math.abs(lat).toFixed(4) + (lat>=0?'N':'S');
-            const lngStr = Math.abs(lng).toFixed(4) + (lng>=0?'E':'W');
-            document.getElementById('coordsDisplay').textContent = `${latStr} ${lngStr}`;
-            
-            if (isRulerActive && rulerPoints.length > 0) {
-                updateRulerPreview(e.lngLat);
-            }
-        });
-
-        map.on('click', (e) => {
-            if (isRulerActive) {
-                handleRulerClick(e.lngLat);
-            }
-        });
-
-        // NOTAM Popup
-        map.on('click', 'notam-areas', (e) => {
-            const props = e.features[0].properties;
-            new maplibregl.Popup({ maxWidth: '300px' })
-                .setLngLat(e.lngLat)
-                .setHTML(`
-                    <div style="font-family: var(--font-main); font-size: 12px; color: white;">
-                        <b style="color:var(--primary); font-size: 14px; display: block; margin-bottom: 8px; font-family: var(--font-mono); border-bottom: 1px solid rgba(14, 165, 233, 0.3); padding-bottom: 4px;">${props.id}</b>
-                        <div style="margin-bottom: 12px; line-height: 1.6; max-height: 180px; overflow-y: auto; padding-right: 8px; font-weight: 500; color: #e2e8f0;">
-                            ${props.content}
-                        </div>
-                        <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: var(--accent-orange); font-weight: 800; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px;">
-                                ${props.limits}
-                            </span>
-                        </div>
-                    </div>
-                `)
-                .addTo(map);
-        });
-
-        map.on('mouseenter', 'notam-areas', () => map.getCanvas().style.cursor = 'pointer');
-        map.on('mouseleave', 'notam-areas', () => map.getCanvas().style.cursor = '');
-
-        setInterval(() => {
-            const now = new Date();
-            const timeStr = now.toISOString().substr(11,8) + ' UTC';
-            const el = document.getElementById('clockDisplay');
-            if (el) el.textContent = timeStr;
-        }, 1000);
-
-        // --- POPUP HANDLERS ---
-        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-
-        const addPopupHover = (layerId, getHtml) => {
-            map.on('mouseenter', layerId, (e) => {
-                map.getCanvas().style.cursor = 'pointer';
-                const html = getHtml(e.features[0].properties);
-                popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
-            });
-            map.on('mouseleave', layerId, () => {
-                map.getCanvas().style.cursor = '';
-                popup.remove();
-            });
-        };
-
-        addPopupHover('notam-areas', (p) => `<b>${p.id}</b><br><small>Aviation Warning Area</small>`);
-        addPopupHover('vona-ash-obs', (p) => `<b style="color:#ef4444">${p.label} ASH CLOUD</b><br><small>TIME: ${p.time || 'N/A'}</small><br><small>ALT: ${p.fl}</small>`);
-        addPopupHover('vona-ash-fcst', (p) => `<b style="color:#f97316">${p.label} FORECAST</b><br><small>TIME: ${p.time || 'N/A'}</small><br><small>ALT: ${p.fl}</small>`);
-        addPopupHover('navtech-labels', (p) => `<b>Waypoint: ${p.name}</b><br><small>Navtech Route Data</small>`);
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 activeTab = this.dataset.tab;
-                const placeholders = {
-                    navtech: 'Paste Navtech route data (waypoints with coordinates)',
-                    vona: 'Paste VONA advisory text',
-                    notam: 'Paste NOTAM text (one or multiple)',
-                    tc: 'Paste Tropical Cyclone warning text (JTWC format)'
-                };
+                const placeholders = { navtech: 'Paste Navtech route data', vona: 'Paste VONA advisory text', notam: 'Paste NOTAM text', tc: 'Paste Tropical Cyclone text' };
                 document.getElementById('mainInput').placeholder = placeholders[activeTab] || '';
             });
         });
@@ -583,6 +359,13 @@ function initMap() {
         console.error('[INIT] Map initialization failed:', error);
         setStatus('Map initialization error', 'danger');
     }
+
+    setInterval(() => {
+        const now = new Date();
+        const timeStr = now.toISOString().substr(11,8) + ' UTC';
+        const el = document.getElementById('clockDisplay');
+        if (el) el.textContent = timeStr;
+    }, 1000);
 }
 
 // --- PARSING FUNCTIONS ---
@@ -800,7 +583,7 @@ function applyVonaFilters() {
     
     map.setFilter('vona-ash-obs', ['all', ['==', ['get', 'type'], 'obs'], filter]);
     map.setFilter('vona-ash-fcst', ['all', ['==', ['get', 'type'], 'fcst'], filter]);
-    map.setFilter('vona-labels', ['all', ['==', '$type', 'Polygon'], filter]);
+    map.setFilter('vona-labels', ['all', ['==', ['geometry-type'], 'Polygon'], filter]);
 }
 
 function parseNotam(text) {
